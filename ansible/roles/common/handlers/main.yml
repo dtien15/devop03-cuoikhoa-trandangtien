@@ -1,0 +1,5 @@
+---
+- name: Khoi dong lai ssh
+  ansible.builtin.service:
+    name: ssh
+    state: restarted

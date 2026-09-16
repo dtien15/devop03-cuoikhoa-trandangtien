@@ -1,0 +1,17 @@
+---
+# ============================================================
+#  PLAYBOOK DEPLOY NHANH - chi cap nhat ung dung, khong cai lai he thong
+#  Dung cho CI/CD goi sau moi lan build image xong.
+#  ansible-playbook -i inventory/hosts.ini deploy.yml --ask-vault-pass
+# ============================================================
+- name: Deploy phien ban moi cua MERN Todo App
+  hosts: todo_servers
+  become: true
+  gather_facts: false
+
+  vars_files:
+    - group_vars/vault.yml
+
+  roles:
+    - role: app
+      tags: [deploy]

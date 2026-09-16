@@ -1,0 +1,25 @@
+name: todo
+
+services:
+  jenkins:
+    build:
+      context: ./jenkins
+      dockerfile: Dockerfile
+    image: todo-jenkins:lts
+    container_name: todo-jenkins
+    restart: unless-stopped
+    user: root                       # can quyen doc /var/run/docker.sock
+    environment:
+      JENKINS_OPTS: "--prefix="
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=true -Dhudson.model.DownloadService.noSignatureCheck=true"
+      JENKINS_URL: "https://{{ jenkins_domain }}"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - {{ app_dir }}:{{ app_dir }}
+    ports:
+      - "127.0.0.1:8080:8080"        # ra ngoai qua nginx proxy, khong mo truc tiep
+    networks: [todo-net]
+
+volumes:
+  jenkins_home:

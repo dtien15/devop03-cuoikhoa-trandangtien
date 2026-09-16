@@ -1,0 +1,42 @@
+---
+- name: Khoi chay Prometheus + Grafana + cac exporter
+  ansible.builtin.command:
+    cmd: >-
+      docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml
+      up -d --remove-orphans
+    chdir: "{{ app_dir }}"
+  register: mon_out
+  changed_when: "'Started' in mon_out.stderr or 'Created' in mon_out.stderr or 'Recreated' in mon_out.stderr"
+
+- name: Doi Prometheus san sang
+  ansible.builtin.uri:
+    url: http://127.0.0.1:9090/-/ready
+    status_code: 200
+  register: prom_ready
+  retries: 20
+  delay: 5
+  until: prom_ready.status == 200
+  changed_when: false
+
+- name: Doi Grafana san sang
+  ansible.builtin.uri:
+    url: http://127.0.0.1:3001/api/health
+    status_code: 200
+  register: graf_ready
+  retries: 20
+  delay: 5
+  until: graf_ready.status == 200
+  changed_when: false
+
+- name: Liet ke target Prometheus dang scrape
+  ansible.builtin.uri:
+    url: http://127.0.0.1:9090/api/v1/targets?state=active
+    return_content: true
+  register: targets
+  changed_when: false
+
+- name: Bao cao target
+  ansible.builtin.debug:
+    msg: >-
+      {{ targets.json.data.activeTargets
+         | map(attribute='labels.job') | unique | list }}

@@ -1,0 +1,83 @@
+---
+- name: Dat mui gio
+  community.general.timezone:
+    name: "{{ timezone }}"
+
+- name: Cai goi he thong can thiet
+  ansible.builtin.apt:
+    name:
+      - curl
+      - git
+      - ufw
+      - fail2ban
+      - htop
+      - unzip
+      - python3-pip
+      - acl
+    state: present
+    update_cache: true
+
+- name: Cai thu vien python cho module docker cua Ansible
+  ansible.builtin.pip:
+    name:
+      - docker
+      - requests
+    state: present
+    extra_args: --break-system-packages
+
+- name: Tao swap 2G neu chua co
+  when: ansible_swaptotal_mb | int < 512
+  block:
+    - name: Tao file swap
+      ansible.builtin.command: fallocate -l 2G /swapfile
+      args:
+        creates: /swapfile
+
+    - name: Phan quyen file swap
+      ansible.builtin.file:
+        path: /swapfile
+        mode: "0600"
+
+    - name: Dinh dang swap
+      ansible.builtin.command: mkswap /swapfile
+      register: mkswap_out
+      changed_when: "'Setting up swapspace' in mkswap_out.stdout"
+      failed_when: mkswap_out.rc != 0 and 'already' not in mkswap_out.stderr
+
+    - name: Bat swap
+      ansible.builtin.command: swapon /swapfile
+      register: swapon_out
+      changed_when: swapon_out.rc == 0
+      failed_when: swapon_out.rc != 0 and 'already' not in swapon_out.stderr
+
+    - name: Ghi swap vao fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: "/swapfile none swap sw 0 0"
+        state: present
+
+- name: Mo cong tren tuong lua
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: ["22", "80", "443"]
+
+- name: Bat ufw (mac dinh chan chieu vao)
+  community.general.ufw:
+    state: enabled
+    policy: deny
+    direction: incoming
+
+- name: Bat fail2ban chong do mat khau SSH
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true
+
+- name: Tat dang nhap SSH bang mat khau
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?PasswordAuthentication"
+    line: "PasswordAuthentication no"
+  notify: Khoi dong lai ssh

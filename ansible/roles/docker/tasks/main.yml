@@ -1,0 +1,55 @@
+---
+- name: Kiem tra Docker da co chua
+  ansible.builtin.command: docker --version
+  register: docker_check
+  changed_when: false
+  failed_when: false
+
+- name: Cai Docker Engine + Compose plugin
+  when: docker_check.rc != 0
+  block:
+    - name: Tai script cai dat chinh chu
+      ansible.builtin.get_url:
+        url: https://get.docker.com
+        dest: /tmp/get-docker.sh
+        mode: "0755"
+
+    - name: Chay script cai dat
+      ansible.builtin.command: sh /tmp/get-docker.sh
+      args:
+        creates: /usr/bin/docker
+
+- name: Bat dich vu docker
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Gioi han log cua Docker de khong day o dia
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    mode: "0644"
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "10m", "max-file": "3" },
+        "live-restore": true
+      }
+  notify: Khoi dong lai docker
+
+- name: Dang nhap GitHub Container Registry
+  community.docker.docker_login:
+    registry_url: "{{ registry }}"
+    username: "{{ vault_ghcr_username }}"
+    password: "{{ vault_ghcr_token }}"
+    reauthorize: true
+  when: vault_ghcr_token | default('') | length > 0
+  no_log: true
+
+- name: Don rac Docker hang tuan bang cron
+  ansible.builtin.cron:
+    name: "docker system prune"
+    weekday: "0"
+    hour: "3"
+    minute: "0"
+    job: "/usr/bin/docker system prune -af --filter 'until=168h' >> /var/log/docker-prune.log 2>&1"

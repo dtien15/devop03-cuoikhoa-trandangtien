@@ -1,0 +1,93 @@
+---
+# Cap chung chi Let's Encrypt cho 3 domain bang phuong thuc webroot.
+# Yeu cau: 3 ban ghi A da tro ve IP VPS (lam ben cPanel Zone Editor).
+
+- name: Kiem tra DNS da tro ve VPS chua
+  ansible.builtin.command: "getent hosts {{ item }}"
+  loop:
+    - "{{ app_domain }}"
+    - "{{ grafana_domain }}"
+    - "{{ jenkins_domain }}"
+  register: dns_check
+  changed_when: false
+  failed_when: false
+
+- name: Canh bao neu domain chua phan giai
+  ansible.builtin.debug:
+    msg: >-
+      CHUA phan giai: {{ dns_check.results
+        | selectattr('rc', 'ne', 0) | map(attribute='item') | list }}
+      -> Vao cPanel Zone Editor them A record roi chay lai role ssl.
+  when: dns_check.results | selectattr('rc', 'ne', 0) | list | length > 0
+
+- name: Kiem tra chung chi da ton tai chua
+  ansible.builtin.stat:
+    path: "/var/lib/docker/volumes/todo_certbot_conf/_data/live/{{ app_domain }}/fullchain.pem"
+  register: cert_stat
+
+- name: Cap chung chi lan dau
+  when: not cert_stat.stat.exists
+  block:
+    - name: Tao chung chi tam de nginx khoi dong duoc
+      ansible.builtin.command:
+        cmd: >-
+          docker compose -f docker-compose.prod.yml run --rm --entrypoint
+          "sh -c 'mkdir -p /etc/letsencrypt/live/{{ app_domain }} &&
+          openssl req -x509 -nodes -newkey rsa:2048 -days 1
+          -keyout /etc/letsencrypt/live/{{ app_domain }}/privkey.pem
+          -out /etc/letsencrypt/live/{{ app_domain }}/fullchain.pem
+          -subj /CN=localhost'" certbot
+        chdir: "{{ app_dir }}"
+      changed_when: true
+
+    - name: Khoi dong nginx voi chung chi tam
+      ansible.builtin.command:
+        cmd: docker compose -f docker-compose.prod.yml up -d --force-recreate proxy
+        chdir: "{{ app_dir }}"
+      changed_when: true
+
+    - name: Xoa chung chi tam
+      ansible.builtin.command:
+        cmd: >-
+          docker compose -f docker-compose.prod.yml run --rm --entrypoint
+          "rm -rf /etc/letsencrypt/live/{{ app_domain }}
+          /etc/letsencrypt/archive/{{ app_domain }}
+          /etc/letsencrypt/renewal/{{ app_domain }}.conf" certbot
+        chdir: "{{ app_dir }}"
+      changed_when: true
+
+    - name: Xin chung chi that tu Let's Encrypt
+      ansible.builtin.command:
+        cmd: >-
+          docker compose -f docker-compose.prod.yml run --rm --entrypoint
+          "certbot certonly --webroot -w /var/www/certbot
+          --email {{ letsencrypt_email }} --agree-tos --no-eff-email
+          --cert-name {{ app_domain }}
+          -d {{ app_domain }} -d {{ grafana_domain }} -d {{ jenkins_domain }}
+          --non-interactive" certbot
+        chdir: "{{ app_dir }}"
+      register: certbot_out
+      changed_when: "'Successfully received certificate' in certbot_out.stdout"
+
+- name: Nap lai nginx de dung chung chi that
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.prod.yml exec -T proxy nginx -s reload
+    chdir: "{{ app_dir }}"
+  changed_when: true
+  failed_when: false
+
+- name: Kiem tra HTTPS
+  ansible.builtin.uri:
+    url: "https://{{ app_domain }}"
+    status_code: 200
+    validate_certs: true
+  register: https_check
+  retries: 5
+  delay: 10
+  until: https_check.status == 200
+  changed_when: false
+  failed_when: false
+
+- name: Ket qua HTTPS
+  ansible.builtin.debug:
+    msg: "HTTPS {{ 'OK' if https_check.status | default(0) == 200 else 'CHUA OK - kiem tra lai DNS' }}"

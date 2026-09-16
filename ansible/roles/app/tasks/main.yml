@@ -1,0 +1,58 @@
+---
+- name: Tao thu muc trien khai
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    mode: "0750"
+
+- name: Lay ma nguon tu GitHub (de co file compose + config)
+  ansible.builtin.git:
+    repo: "{{ git_repo }}"
+    dest: "{{ app_dir }}"
+    version: "{{ git_branch }}"
+    force: true
+  register: git_result
+
+- name: Sinh file .env cho production
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ app_dir }}/.env"
+    mode: "0600"
+  no_log: true
+
+- name: Keo image moi nhat tu GHCR
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.prod.yml pull backend frontend mongo
+    chdir: "{{ app_dir }}"
+  register: pull_out
+  changed_when: "'Pulled' in pull_out.stderr or 'Downloaded' in pull_out.stderr"
+
+- name: Khoi chay ung dung
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.prod.yml up -d --remove-orphans
+    chdir: "{{ app_dir }}"
+  register: up_out
+  changed_when: "'Started' in up_out.stderr or 'Created' in up_out.stderr or 'Recreated' in up_out.stderr"
+
+- name: Doi backend bao healthy (goi /health tu ben trong container)
+  ansible.builtin.command:
+    cmd: >-
+      docker compose -f docker-compose.prod.yml exec -T backend
+      wget -qO- http://127.0.0.1:8000/health
+    chdir: "{{ app_dir }}"
+  register: health
+  retries: 24
+  delay: 5
+  until: health.rc == 0 and '"status":"ok"' in health.stdout
+  changed_when: false
+
+- name: Kiem tra container dang chay
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.prod.yml ps
+    chdir: "{{ app_dir }}"
+  register: ps_out
+  changed_when: false
+
+- name: Hien trang thai container
+  ansible.builtin.debug:
+    var: ps_out.stdout_lines

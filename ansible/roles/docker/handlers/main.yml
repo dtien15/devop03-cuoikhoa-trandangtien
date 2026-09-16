@@ -1,0 +1,5 @@
+---
+- name: Khoi dong lai docker
+  ansible.builtin.service:
+    name: docker
+    state: restarted

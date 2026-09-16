@@ -1,0 +1,55 @@
+---
+# ============================================================
+#  PLAYBOOK CHINH: cai dat va deploy toan bo he thong len VPS
+#  ansible-playbook -i inventory/hosts.ini playbook.yml
+# ============================================================
+- name: Cai dat va trien khai MERN Todo App
+  hosts: todo_servers
+  become: true
+  gather_facts: true
+
+  vars_files:
+    - group_vars/vault.yml
+
+  pre_tasks:
+    - name: Doi cloud-init chay xong
+      ansible.builtin.wait_for:
+        path: /var/lib/cloud/instance/boot-finished
+        timeout: 600
+      changed_when: false
+
+    - name: Cap nhat apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+  roles:
+    - role: common
+      tags: [common]
+
+    - role: docker
+      tags: [docker]
+
+    - role: app
+      tags: [app, deploy]
+
+    - role: monitoring
+      tags: [monitoring]
+      when: install_monitoring | bool
+
+    - role: jenkins
+      tags: [jenkins]
+      when: install_jenkins | bool
+
+    - role: ssl
+      tags: [ssl]
+      when: enable_ssl | bool
+
+  post_tasks:
+    - name: Tom tat
+      ansible.builtin.debug:
+        msg:
+          - "Ung dung : https://{{ app_domain }}"
+          - "Grafana  : https://{{ grafana_domain }}  (user {{ grafana_admin_user }})"
+          - "Jenkins  : https://{{ jenkins_domain }}"
+          - "Prometheus: ssh -L 9090:localhost:9090 root@{{ ansible_host }} roi mo http://localhost:9090"

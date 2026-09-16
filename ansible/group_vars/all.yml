@@ -1,0 +1,32 @@
+# ============================================================
+#  BIEN CHUNG CHO TOAN BO PLAYBOOK
+#  Secret that de trong vault.yml (xem vault.yml.example)
+# ============================================================
+
+# --- Domain ---
+app_domain:     "todo.muatheme247.com"
+grafana_domain: "grafana.muatheme247.com"
+jenkins_domain: "jenkins.muatheme247.com"
+letsencrypt_email: "support@dgmasia.vn"
+
+# --- Ma nguon & thu muc trien khai ---
+app_dir:      /opt/todo-app
+git_repo:     "https://github.com/dtien15/devop03-cuoikhoa-trandangtien.git"
+git_branch:   main
+
+# --- Docker image tren GHCR ---
+registry:        ghcr.io
+registry_owner:  "dtien15"
+backend_image:   "ghcr.io/dtien15/devop03-cuoikhoa-trandangtien-backend:latest"
+frontend_image:  "ghcr.io/dtien15/devop03-cuoikhoa-trandangtien-frontend:latest"
+
+# --- Thanh phan bat/tat ---
+install_monitoring: true
+install_jenkins:    true
+enable_ssl:         true
+
+# --- Tai khoan (ghi de bang vault.yml khi chay that) ---
+mongo_root_user:        "todoadmin"
+grafana_admin_user:     "admin"
+
+timezone: "Asia/Ho_Chi_Minh"

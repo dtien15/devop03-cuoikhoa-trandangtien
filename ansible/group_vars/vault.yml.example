@@ -1,0 +1,9 @@
+# Tao file that:  ansible-vault create group_vars/vault.yml
+# Chay playbook:  ansible-playbook playbook.yml --ask-vault-pass
+vault_jwt_secret:            "chuoi-ngau-nhien-that-dai-doi-di"
+vault_mongo_root_password:   "mat-khau-mongo-manh"
+vault_grafana_admin_password: "mat-khau-grafana-manh"
+vault_ghcr_username:         "github-username"
+vault_ghcr_token:            "ghp_xxx_personal_access_token_co_quyen_read_packages"
+vault_gmail_username:        ""
+vault_gmail_password:        ""

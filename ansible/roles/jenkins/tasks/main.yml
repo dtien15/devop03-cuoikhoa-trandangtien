@@ -1,0 +1,56 @@
+---
+- name: Tao thu muc Jenkins
+  ansible.builtin.file:
+    path: "{{ app_dir }}/jenkins"
+    state: directory
+    mode: "0755"
+
+- name: Dat Dockerfile cho Jenkins (them docker CLI + compose)
+  ansible.builtin.template:
+    src: Dockerfile.jenkins.j2
+    dest: "{{ app_dir }}/jenkins/Dockerfile"
+    mode: "0644"
+
+- name: Dat danh sach plugin cai san
+  ansible.builtin.copy:
+    src: plugins.txt
+    dest: "{{ app_dir }}/jenkins/plugins.txt"
+    mode: "0644"
+
+- name: Dat docker-compose cho Jenkins
+  ansible.builtin.template:
+    src: docker-compose.jenkins.yml.j2
+    dest: "{{ app_dir }}/docker-compose.jenkins.yml"
+    mode: "0644"
+
+- name: Build va khoi chay Jenkins
+  ansible.builtin.command:
+    cmd: >-
+      docker compose -f docker-compose.prod.yml -f docker-compose.jenkins.yml
+      up -d --build jenkins
+    chdir: "{{ app_dir }}"
+  register: jk_out
+  changed_when: "'Started' in jk_out.stderr or 'Created' in jk_out.stderr or 'Recreated' in jk_out.stderr"
+
+- name: Doi Jenkins san sang
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8080/login
+    status_code: [200, 403]
+  register: jk_ready
+  retries: 30
+  delay: 10
+  until: jk_ready.status in [200, 403]
+  changed_when: false
+
+- name: Lay mat khau admin lan dau
+  ansible.builtin.command:
+    cmd: docker exec todo-jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+  register: jk_pass
+  changed_when: false
+  failed_when: false
+
+- name: Mat khau admin Jenkins
+  ansible.builtin.debug:
+    msg: >-
+      Mo https://{{ jenkins_domain }} va dan mat khau:
+      {{ jk_pass.stdout | default('(da setup xong tu truoc)') }}
