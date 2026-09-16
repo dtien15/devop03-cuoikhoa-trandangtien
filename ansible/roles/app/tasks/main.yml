@@ -29,7 +29,9 @@
 
 - name: Khoi chay ung dung
   ansible.builtin.command:
-    cmd: docker compose -f docker-compose.prod.yml up -d --remove-orphans
+    # KHONG dung --remove-orphans: se xoa container monitoring va jenkins
+    # vi chung khong nam trong file compose duoc nap o day.
+    cmd: docker compose -f docker-compose.prod.yml up -d
     chdir: "{{ app_dir }}"
   register: up_out
   changed_when: "'Started' in up_out.stderr or 'Created' in up_out.stderr or 'Recreated' in up_out.stderr"

@@ -3,7 +3,7 @@
   ansible.builtin.command:
     cmd: >-
       docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml
-      up -d --remove-orphans
+      up -d
     chdir: "{{ app_dir }}"
   register: mon_out
   changed_when: "'Started' in mon_out.stderr or 'Created' in mon_out.stderr or 'Recreated' in mon_out.stderr"

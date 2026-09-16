@@ -195,7 +195,9 @@ jobs:
             echo "==> Keo image moi tu GHCR"
             docker compose -f docker-compose.prod.yml pull backend frontend
             echo "==> Khoi chay lai"
-            docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d --remove-orphans
+            # KHONG dung --remove-orphans: 4 file compose chung project "todo",
+            # lenh nay se xoa todo-jenkins (khong nam trong 2 file duoc nap).
+            docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d
             echo "==> Don rac"
             docker image prune -f
 

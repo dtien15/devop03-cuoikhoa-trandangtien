@@ -146,9 +146,13 @@ pipeline {
                     cd ${APP_DIR}
                     git fetch --all && git reset --hard origin/main
                     docker compose -f docker-compose.prod.yml pull backend frontend
+                    # KHONG dung --remove-orphans: ca 4 file compose deu chung project
+                    # "todo". Lenh nay khong nap docker-compose.jenkins.yml nen compose coi
+                    # todo-jenkins la mo coi va XOA no -> Jenkins tu giet chinh minh giua
+                    # luc dang chay build (exit 143).
                     docker compose -f docker-compose.prod.yml \
                                    -f docker-compose.monitoring.yml \
-                                   up -d --remove-orphans
+                                   up -d
                 """
             }
         }
