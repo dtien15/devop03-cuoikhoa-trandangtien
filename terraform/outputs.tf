@@ -16,9 +16,9 @@ output "ssh_command" {
 output "dns_records_can_tao" {
   description = "Cac ban ghi can them trong cPanel > Zone Editor"
   value = {
-    "A  ${var.domain}"             = local.public_ip
-    "A  grafana.${var.domain}"     = local.public_ip
-    "A  jenkins.${var.domain}"     = local.public_ip
+    "A  ${var.domain}"         = local.public_ip
+    "A  grafana.${var.domain}" = local.public_ip
+    "A  jenkins.${var.domain}" = local.public_ip
   }
 }
 
