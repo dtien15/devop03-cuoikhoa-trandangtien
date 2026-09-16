@@ -103,7 +103,15 @@ pipeline {
         }
 
         stage('4. Day image len GHCR') {
-            when { branch 'main' }
+            when {
+                anyOf {
+                    branch 'main'
+                    // Job Pipeline thuong (khong phai Multibranch) khong co
+                    // bien BRANCH_NAME -> dieu kien branch luon sai va stage
+                    // bi bo qua. Nhanh nay xu ly truong hop do.
+                    expression { env.BRANCH_NAME == null }
+                }
+            }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'ghcr-credentials',
@@ -124,7 +132,15 @@ pipeline {
         }
 
         stage('5. Deploy len VPS') {
-            when { branch 'main' }
+            when {
+                anyOf {
+                    branch 'main'
+                    // Job Pipeline thuong (khong phai Multibranch) khong co
+                    // bien BRANCH_NAME -> dieu kien branch luon sai va stage
+                    // bi bo qua. Nhanh nay xu ly truong hop do.
+                    expression { env.BRANCH_NAME == null }
+                }
+            }
             steps {
                 sh """
                     cd ${APP_DIR}
@@ -138,7 +154,15 @@ pipeline {
         }
 
         stage('6. Kiem tra sau deploy') {
-            when { branch 'main' }
+            when {
+                anyOf {
+                    branch 'main'
+                    // Job Pipeline thuong (khong phai Multibranch) khong co
+                    // bien BRANCH_NAME -> dieu kien branch luon sai va stage
+                    // bi bo qua. Nhanh nay xu ly truong hop do.
+                    expression { env.BRANCH_NAME == null }
+                }
+            }
             steps {
                 sh """
                     cd ${APP_DIR}
