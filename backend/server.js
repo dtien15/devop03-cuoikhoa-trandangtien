@@ -3,6 +3,7 @@ import mongoose from "mongoose"
 import cors from "cors"
 import dotenv from "dotenv"
 import client from "prom-client"
+import { readFileSync } from "fs"
 
 import userRouter from "./routes/userRoute.js"
 import taskRouter from "./routes/taskRoute.js"
@@ -11,6 +12,10 @@ import forgotPasswordRouter from "./routes/forgotPassword.js"
 //app config
 dotenv.config()
 const app = express()
+
+// Doc version tu package.json de /health bao duoc phien ban dang chay.
+// Huu ich khi kiem tra xem CI/CD da deploy ban moi len VPS chua.
+const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url)))
 const port = process.env.PORT || 8000
 mongoose.set('strictQuery', true);
 
@@ -76,6 +81,7 @@ app.get("/health", (req, res) => {
     const dbState = mongoose.connection.readyState // 1 = connected
     res.status(dbState === 1 ? 200 : 503).json({
         status: dbState === 1 ? "ok" : "degraded",
+        version: pkg.version,
         db: ["disconnected", "connected", "connecting", "disconnecting"][dbState],
         uptime: process.uptime(),
     })
