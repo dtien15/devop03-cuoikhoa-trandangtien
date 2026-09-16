@@ -17,16 +17,19 @@ output "dns_records_can_tao" {
   description = "Cac ban ghi can them trong cPanel > Zone Editor"
   value = {
     "A  ${var.domain}"         = local.public_ip
-    "A  grafana.${var.domain}" = local.public_ip
-    "A  jenkins.${var.domain}" = local.public_ip
+    "A  ${var.grafana_domain}" = local.public_ip
+    "A  ${var.jenkins_domain}" = local.public_ip
   }
 }
 
 output "buoc_tiep_theo" {
   value = <<-EOT
 
-    1) Vao cPanel > Zone Editor, them 3 ban ghi A tro ve ${local.public_ip}
+    1) Vao cPanel > Zone Editor cua muatheme247.com, them 3 ban ghi A:
+         todo     ->  ${local.public_ip}
+         grafana  ->  ${local.public_ip}
+         jenkins  ->  ${local.public_ip}
     2) Doi DNS phan giai (kiem tra: nslookup ${var.domain})
-    3) Chay Ansible:  cd ../ansible && ansible-playbook -i inventory/hosts.ini playbook.yml
+    3) Chay Ansible de cai dat va deploy
   EOT
 }

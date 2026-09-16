@@ -106,10 +106,14 @@ resource "digitalocean_project" "this" {
   ])
 }
 
-# --- Canh bao qua email khi CPU cao (mien phi cua DigitalOcean) ---
+# --- Canh bao qua email khi CPU cao (chi tao khi co dien alert_email) ---
+# DigitalOcean bat buoc phai co it nhat 1 kenh nhan thong bao,
+# de trong se lam provider crash.
 resource "digitalocean_monitor_alert" "cpu" {
+  count = var.alert_email != "" ? 1 : 0
+
   alerts {
-    email = []
+    email = [var.alert_email]
   }
   window      = "5m"
   type        = "v1/insights/droplet/cpu"

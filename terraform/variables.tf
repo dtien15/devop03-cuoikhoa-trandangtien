@@ -67,3 +67,25 @@ variable "enable_reserved_ip" {
   type        = bool
   default     = true
 }
+
+variable "alert_email" {
+  description = <<-EOT
+    Email nhan canh bao CPU tu DigitalOcean.
+    De trong ("") thi khong tao alert - he thong da co 10 canh bao trong
+    Prometheus/Alertmanager roi nen khong bat buoc.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "grafana_domain" {
+  description = "Domain cho Grafana (phai khop ansible/group_vars/all.yml)"
+  type        = string
+  default     = "grafana.muatheme247.com"
+}
+
+variable "jenkins_domain" {
+  description = "Domain cho Jenkins (phai khop ansible/group_vars/all.yml)"
+  type        = string
+  default     = "jenkins.muatheme247.com"
+}

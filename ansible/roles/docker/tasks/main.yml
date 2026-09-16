@@ -25,7 +25,7 @@
     state: started
     enabled: true
 
-- name: Gioi han log cua Docker de khong day o dia
+- name: Cau hinh Docker daemon
   ansible.builtin.copy:
     dest: /etc/docker/daemon.json
     mode: "0644"
@@ -33,9 +33,20 @@
       {
         "log-driver": "json-file",
         "log-opts": { "max-size": "10m", "max-file": "3" },
-        "live-restore": true
+        "live-restore": true,
+        "features": { "containerd-snapshotter": false }
       }
   notify: Khoi dong lai docker
+
+# Vi sao tat containerd-snapshotter:
+# Docker 29 mac dinh dung kho anh containerd (driver "overlayfs"), khien
+# /var/lib/docker/image/<driver>/layerdb khong con ton tai. cAdvisor doc theo
+# layout cu nen bao "failed to identify the read-write layer ID" va bo qua
+# TOAN BO container -> khong co metric CPU/RAM tung container.
+# Tat co nay dua Docker ve kho anh overlay2 truyen thong, cAdvisor doc duoc.
+
+- name: Ap dung cau hinh daemon ngay (cac role sau can kho anh dung)
+  ansible.builtin.meta: flush_handlers
 
 - name: Dang nhap GitHub Container Registry
   community.docker.docker_login:

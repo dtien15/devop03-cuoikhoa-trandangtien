@@ -1,5 +1,34 @@
 ---
-- name: Khoi dong lai docker
+# Dung het container TRUOC khi restart daemon.
+#
+# Vi sao: daemon.json dat live-restore=true nen khi Docker khoi dong lai,
+# container cu VAN CHAY nhung nam ngoai tam quan ly cua daemon moi (mo coi).
+# Neu doi cau hinh kho anh, compose se tao container moi trong khi mongod cu
+# van giu /data/db/mongod.lock -> container moi chet voi loi DBPathInUse.
+# Cac role phia sau chay "up -d" nen container duoc dung lai ngay sau do.
+
+- name: Dung toan bo container truoc khi restart daemon
+  listen: Khoi dong lai docker
+  ansible.builtin.shell: |
+    ids=$(docker ps -q)
+    if [ -n "$ids" ]; then docker stop $ids; fi
+  args:
+    executable: /bin/bash
+  changed_when: true
+  failed_when: false
+
+- name: Restart dich vu docker
+  listen: Khoi dong lai docker
   ansible.builtin.service:
     name: docker
     state: restarted
+
+- name: Don tien trinh shim mo coi con sot lai
+  listen: Khoi dong lai docker
+  ansible.builtin.shell: |
+    pkill -f 'containerd-shim.*moby' 2>/dev/null || true
+    sleep 2
+    exit 0
+  args:
+    executable: /bin/bash
+  changed_when: false
