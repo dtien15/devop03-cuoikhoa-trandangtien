@@ -46,21 +46,31 @@ pipeline {
             parallel {
                 stage('Backend') {
                     steps {
+                        // Khong dung -v <workspace>:/app duoc: duong dan sau -v la duong dan
+                        // TREN HOST, ma jenkins_home la named volume nen host khong co
+                        // duong dan do -> Docker tao thu muc rong, npm bao thieu package.json.
+                        // Giai phap: bom ma nguon vao container qua stdin bang tar.
                         sh '''
-                            docker run --rm -v "$PWD/backend":/app -w /app node:20-alpine sh -c "
-                                npm install --no-audit --no-fund &&
-                                for f in \\$(find . -name '*.js' -not -path './node_modules/*'); do
-                                    node --check \\$f || exit 1
+                            tar -cf - backend | docker run --rm -i node:20-alpine sh -c '
+                                mkdir -p /src && tar -xf - -C /src && cd /src/backend &&
+                                npm install --no-audit --no-fund > /dev/null 2>&1 &&
+                                for f in $(find . -name "*.js" -not -path "./node_modules/*"); do
+                                    node --check "$f" || exit 1
                                 done &&
-                                echo 'Cu phap backend OK'
-                            "
+                                echo "Cu phap backend OK"
+                            '
                         '''
                     }
                 }
                 stage('Docker Compose') {
                     steps {
-                        sh 'docker compose -f docker-compose.yml config -q && echo "compose OK"'
-                        sh 'docker compose -f docker-compose.monitoring.yml config -q || true'
+                        sh 'docker compose -f docker-compose.yml config -q && echo "docker-compose.yml OK"'
+                        // File monitoring khong tu dinh nghia network todo-net,
+                        // phai ghep voi file chinh moi validate duoc.
+                        sh '''
+                            docker compose -f docker-compose.yml                                            -f docker-compose.monitoring.yml config -q
+                            echo "docker-compose.monitoring.yml OK"
+                        '''
                     }
                 }
             }
