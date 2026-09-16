@@ -1,0 +1,69 @@
+# ============================================================
+#  MOI TRUONG DEV / DOCKER DESKTOP
+#  Chay: docker compose up -d --build
+#  Frontend: http://localhost:3000   Backend: http://localhost:8000
+# ============================================================
+name: todo
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: todo-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: todo
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"          # mo ra de dev noi bang MongoDB Compass
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [todo-net]
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: todo-backend:dev
+    container_name: todo-backend
+    restart: unless-stopped
+    environment:
+      MONGO_URI: mongodb://mongo:27017/todo
+      PORT: "8000"
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-doi-truoc-khi-len-production}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      GMAIL_USERNAME: ${GMAIL_USERNAME:-}
+      GMAIL_PASSWORD: ${GMAIL_PASSWORD:-}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    networks: [todo-net]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Goi qua nginx cua chinh frontend -> khong dinh CORS
+        REACT_APP_API_URL: /api
+    image: todo-frontend:dev
+    container_name: todo-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    networks: [todo-net]
+
+volumes:
+  mongo_data:
+
+networks:
+  todo-net:
+    driver: bridge

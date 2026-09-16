@@ -1,0 +1,93 @@
+# ============================================================
+#  MOI TRUONG PRODUCTION (VPS DigitalOcean)
+#  Chay:  docker compose -f docker-compose.prod.yml \
+#                        -f docker-compose.monitoring.yml up -d
+#  Image keo tu GHCR, khong build tren VPS.
+# ============================================================
+name: todo
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: todo-mongo
+    restart: unless-stopped
+    command: ["--auth"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: todo
+    volumes:
+      - mongo_data:/data/db
+    # KHONG publish port 27017 ra ngoai internet
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks: [todo-net]
+
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/dtien15/devop03-cuoikhoa-trandangtien-backend:latest}
+    container_name: todo-backend
+    restart: unless-stopped
+    environment:
+      MONGO_URI: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongo:27017/todo?authSource=admin
+      PORT: "8000"
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGIN: https://${DOMAIN}
+      GMAIL_USERNAME: ${GMAIL_USERNAME:-}
+      GMAIL_PASSWORD: ${GMAIL_PASSWORD:-}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks: [todo-net]
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/dtien15/devop03-cuoikhoa-trandangtien-frontend:latest}
+    container_name: todo-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks: [todo-net]
+
+  proxy:
+    image: nginx:1.27-alpine
+    container_name: todo-proxy
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+      GRAFANA_DOMAIN: ${GRAFANA_DOMAIN}
+      JENKINS_DOMAIN: ${JENKINS_DOMAIN}
+      NGINX_ENVSUBST_FILTER: "^(DOMAIN|GRAFANA_DOMAIN|JENKINS_DOMAIN)$$"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./nginx/00-upgrade-map.conf:/etc/nginx/conf.d/00-upgrade-map.conf:ro
+      - certbot_conf:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
+    depends_on:
+      - frontend
+    networks: [todo-net]
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: todo-certbot
+    restart: unless-stopped
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    # Tu gia han chung chi moi 12 gio
+    entrypoint: /bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done'
+    networks: [todo-net]
+
+volumes:
+  mongo_data:
+  certbot_conf:
+  certbot_www:
+
+networks:
+  todo-net:
+    driver: bridge
