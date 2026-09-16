@@ -39,5 +39,3 @@ yarn-error.log*
 .DS_Store
 __MACOSX/
 
-# README de tham khao rieng, khong dua len GitHub
-/README.md
