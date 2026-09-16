@@ -1,0 +1,28 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: default
+  group_by: ["alertname", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers: [severity="critical"]
+      receiver: default
+      repeat_interval: 1h
+
+receivers:
+  - name: default
+    # Muon nhan mail/Telegram thi bo comment va dien thong tin ben duoi.
+    # email_configs:
+    #   - to: "ban@example.com"
+    #     from: "alert@example.com"
+    #     smarthost: "smtp.gmail.com:587"
+    #     auth_username: "ban@gmail.com"
+    #     auth_password: "app-password"
+
+inhibit_rules:
+  - source_matchers: [severity="critical"]
+    target_matchers: [severity="warning"]
+    equal: ["alertname", "instance"]

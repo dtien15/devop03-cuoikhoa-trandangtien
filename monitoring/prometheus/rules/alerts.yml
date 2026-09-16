@@ -1,0 +1,91 @@
+groups:
+  # ======== CANH BAO PHAN CUNG VPS ========
+  - name: hardware
+    rules:
+      - alert: VpsDown
+        expr: up{job="node"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "Khong scrape duoc node-exporter"
+          description: "VPS hoac node-exporter da ngung hoat dong hon 1 phut."
+
+      - alert: CpuCao
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "CPU > 85% trong 5 phut"
+          description: "CPU dang o muc {{ $value | printf \"%.1f\" }}%."
+
+      - alert: RamCao
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "RAM > 90%"
+          description: "RAM su dung {{ $value | printf \"%.1f\" }}%."
+
+      - alert: DiskSapDay
+        expr: (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs"}) * 100 > 85
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "O dia {{ $labels.mountpoint }} da dung > 85%"
+          description: "Con trong {{ $value | printf \"%.1f\" }}% da bi chiem."
+
+  # ======== CANH BAO DATABASE ========
+  - name: database
+    rules:
+      - alert: MongoDown
+        expr: mongodb_up == 0 or up{job="mongodb"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "MongoDB khong phan hoi"
+          description: "mongodb-exporter bao database down hon 1 phut."
+
+      - alert: BackendMatKetNoiDB
+        expr: todo_mongodb_up == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Backend mat ket noi MongoDB"
+          description: "Endpoint /health cua backend bao db disconnected."
+
+      - alert: MongoKetNoiGanCan
+        expr: mongodb_ss_connections{conn_type="current"} > 400
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "So ket noi MongoDB cao"
+          description: "Hien co {{ $value }} ket noi dong thoi."
+
+  # ======== CANH BAO UNG DUNG ========
+  - name: application
+    rules:
+      - alert: UngDungDown
+        expr: probe_success == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Endpoint {{ $labels.instance }} khong truy cap duoc"
+          description: "Blackbox probe that bai hon 2 phut."
+
+      - alert: ApiChamBatThuong
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m]))) > 2
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "API p95 > 2 giay"
+          description: "p95 hien tai {{ $value | printf \"%.2f\" }}s."
+
+      - alert: TyLeLoi5xxCao
+        expr: |
+          sum(rate(http_request_duration_seconds_count{status_code=~"5.."}[5m]))
+          / sum(rate(http_request_duration_seconds_count[5m])) > 0.05
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Ty le loi 5xx > 5%"
+          description: "Backend dang tra loi 5xx nhieu bat thuong."

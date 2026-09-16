@@ -1,0 +1,127 @@
+# ============================================================
+#  HE THONG GIAM SAT: Prometheus + Grafana + Exporters
+#  Dev :  docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+#  Prod:  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d
+# ============================================================
+name: todo
+
+services:
+  # --- Thu thap & luu tru metric ---
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: todo-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"   # chi mo tren loopback, ra ngoai qua SSH tunnel
+    networks: [todo-net]
+
+  # --- Canh bao ---
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: todo-alertmanager
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    ports:
+      - "127.0.0.1:9093:9093"
+    networks: [todo-net]
+
+  # --- Giao dien bieu do ---
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: todo-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3001}
+      GF_INSTALL_PLUGINS: ""
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    ports:
+      - "3001:3000"             # prod: da co nginx proxy qua grafana.<domain>
+    networks: [todo-net]
+
+  # --- PHAN CUNG VPS: CPU, RAM, disk, network ---
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: todo-node-exporter
+    restart: unless-stopped
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    volumes:
+      # Linux thuan co the dung "/:/host:ro,rslave"; Docker Desktop khong ho tro rslave
+      - /:/host:ro
+    networks: [todo-net]
+
+  # --- Tai nguyen tung container ---
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: todo-cadvisor
+    restart: unless-stopped
+    privileged: true
+    cgroup: host                    # can thiet de doc duoc cgroup v2
+    devices:
+      - /dev/kmsg
+    command:
+      - --docker_only=true          # chi theo doi container, bo qua cgroup he thong
+      - --store_container_labels=false
+      - --housekeeping_interval=15s
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks: [todo-net]
+
+  # --- TRANG THAI DATABASE: MongoDB ---
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.40
+    container_name: todo-mongodb-exporter
+    restart: unless-stopped
+    command:
+      - --mongodb.uri=${MONGO_EXPORTER_URI:-mongodb://mongo:27017}
+      - --collect-all
+      - --compatible-mode
+      - --discovering-mode
+    depends_on:
+      - mongo
+    networks: [todo-net]
+
+  # --- Kiem tra endpoint song/chet (HTTP probe) ---
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.25.0
+    container_name: todo-blackbox
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/blackbox:/config:ro
+    command:
+      - --config.file=/config/blackbox.yml
+    networks: [todo-net]
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:
